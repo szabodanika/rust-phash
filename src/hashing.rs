@@ -1,12 +1,9 @@
 use crate::logger;
-use clap::Parser;
 use distance::*;
 use image::{io::Reader, DynamicImage, ImageBuffer, ImageError};
-use lazy_static::lazy_static;
 use rustdct::DctPlanner;
 use std::fs;
 use std::process;
-use std::time::Instant;
 // use num_bigint::BigUint;
 
 const TEMP_FILE_DIR_PATH: &'static str = "./temp/";
@@ -49,7 +46,7 @@ fn hash_distance(hash1: &str, hash2: &str) -> f32 {
 
 pub fn hash(file_name: &str, rotations: &bool) -> Vec<String> {
     // STEP 1 - LOAD IMAGE
-    logger::print_debug(&format!("Loading {}.", file_name));
+    logger::log_debug(&format!("Loading {}.", file_name));
     let load_result = load_from_disk(&file_name);
 
     let image = load_result.unwrap();
@@ -96,8 +93,8 @@ pub fn hash(file_name: &str, rotations: &bool) -> Vec<String> {
 fn load_from_disk(file_name: &str) -> Result<DynamicImage, ImageError> {
     let load_result = Reader::open(file_name)?.decode();
     if load_result.is_err() {
-        logger::print_error(&format!(
-            "Error: Failed to load \"{}\": \"{}\".",
+        logger::log_error(&format!(
+            "Failed to load \"{}\": \"{}\".",
             &file_name,
             &load_result.err().unwrap()
         ));
@@ -114,9 +111,9 @@ fn save_to_disk(img: &DynamicImage, file_name: &str) {
         TEMP_FILE_DIR_PATH, file_name, TEMP_FILE_EXT
     ));
     if save_result.is_err() {
-        logger::print_error(
+        logger::log_error(
             &format!(
-                "Error: Failed to save \"{}\": {}",
+                "Failed to save \"{}\": {}",
                 TEMP_FILE_NAME_LANDSCAPE,
                 save_result.err().unwrap()
             )
@@ -127,7 +124,7 @@ fn save_to_disk(img: &DynamicImage, file_name: &str) {
 }
 
 fn rescale_image(img: &DynamicImage, w: u32, h: u32) -> DynamicImage {
-    logger::print_debug(&format!(
+    logger::log_debug(&format!(
         "Rescaling image from {}*{} to fit {}*{}.",
         img.width(),
         img.height(),
@@ -138,7 +135,7 @@ fn rescale_image(img: &DynamicImage, w: u32, h: u32) -> DynamicImage {
 }
 
 fn discrete_cosine_transform(img: &DynamicImage, chunk_side_length: usize) -> DynamicImage {
-    logger::print_debug("Applying Discrete Cosine Transform");
+    logger::log_debug("Applying Discrete Cosine Transform");
 
     let mut planner = DctPlanner::<f32>::new();
 
@@ -149,24 +146,11 @@ fn discrete_cosine_transform(img: &DynamicImage, chunk_side_length: usize) -> Dy
         bytes.push(vec_bytes[i] as f32)
     }
 
-    // let dct = planner.plan_dct2(8);
-    // for b_I in (0..SCALED_SIDE_LENGTH).step_by(1){
-    //     for b_J in (0..SCALED_SIDE_LENGTH).step_by(8){
-    //         for i in (b_I..b_I+8).step_by(SCALED_SIDE_LENGTH as usize) {
-    //             // for j in (b_J..b_J+8).step_by(SCALED_SIDE_LENGTH as usize) {
-    //                 dct.process_dct2(&mut bytes[i as usize..(i+8) as usize]);
-    //             // }
-    //         }
-    //     }
-    // }
-
-    // let dct = planner.plan_dct2((SCALED_SIDE_LENGTH * SCALED_SIDE_LENGTH) as usize);
-    // dct.process_dct2(&mut bytes);
-
     let dct = planner.plan_dct2(chunk_side_length);
     for i in (0..bytes.len()).step_by(chunk_side_length) {
         dct.process_dct2(&mut bytes[i..i + chunk_side_length]);
     }
+
     let mut transposed = [0f32; (SCALED_SIDE_LENGTH * SCALED_SIDE_LENGTH) as usize];
     transpose::transpose(
         &bytes,
@@ -174,7 +158,7 @@ fn discrete_cosine_transform(img: &DynamicImage, chunk_side_length: usize) -> Dy
         SCALED_SIDE_LENGTH as usize,
         SCALED_SIDE_LENGTH as usize,
     );
-    // let dct = planner.plan_dct2((SCALED_SIDE_LENGTH) as usize);
+
     for i in (0..transposed.len()).step_by(chunk_side_length) {
         dct.process_dct2(&mut transposed[i..i + chunk_side_length]);
     }
@@ -189,12 +173,12 @@ fn discrete_cosine_transform(img: &DynamicImage, chunk_side_length: usize) -> Dy
 }
 
 fn greyscale(img: &DynamicImage) -> DynamicImage {
-    logger::print_debug("Converting into greyscale.");
+    logger::log_debug("Converting into greyscale.");
     DynamicImage::from(img.to_luma8())
 }
 
 fn normalise(img: &DynamicImage) -> DynamicImage {
-    logger::print_debug("Normalising image.");
+    logger::log_debug("Normalising image.");
 
     let vec_bytes = img.as_bytes();
     let mut bytes = vec![0; vec_bytes.len()];
@@ -230,7 +214,7 @@ fn normalise(img: &DynamicImage) -> DynamicImage {
 }
 
 fn binary(img: &DynamicImage) -> DynamicImage {
-    logger::print_debug("Reducing greyscale to binary.");
+    logger::log_debug("Reducing greyscale to binary.");
 
     let vec_bytes = img.as_bytes();
     let mut bytes = vec![0; vec_bytes.len()];
@@ -251,7 +235,7 @@ fn binary(img: &DynamicImage) -> DynamicImage {
 }
 
 fn get_hash_strings(img: &DynamicImage, rot_90_deg_count: u8) -> String {
-    logger::print_debug(&format!(
+    logger::log_debug(&format!(
         "Producing hash string ({}deg).",
         rot_90_deg_count as u16 * 90u16
     ));
@@ -289,7 +273,7 @@ pub fn to_hex(binary_string: &str) -> String {
         match four_bit_word_to_hex(&padded_binary_string[counter..counter + 4]) {
             Some(converted) => hex_string.push_str(converted),
             None => panic!(
-                "Error: Failed to convert binary string \"{}\" to hex string.",
+                "Failed to convert binary string \"{}\" to hex string.",
                 &padded_binary_string[counter..counter + 4]
             ),
         };
@@ -319,3 +303,13 @@ fn four_bit_word_to_hex(b: &str) -> Option<&str> {
         _ => None,
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[test]
+//     fn test_add() {
+//         assert_eq!(add(1, 2), 3);
+//     }
+// }
