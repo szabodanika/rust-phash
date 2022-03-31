@@ -1,16 +1,21 @@
-use ansi_term::Colour::Red;
 
-pub fn print_error(message: &str) {
-    println!(
-        "[ERROR] {}",
-        Red.paint(format!("Error:\t{}", message).to_string())
-    );
+use log::{info, warn, error, debug};
+
+
+
+pub fn log_error(message: &str) {
+    error!("{}", message)
 }
 
-pub fn print_debug(message: &str) {
-    println!("[DEBUG] {}", message);
+pub fn log_warn(message: &str) {
+    warn!("{}", message)
 }
 
-pub fn print_info(message: &str) {
-    println!("{}", message);
+
+pub fn log_debug(message: &str) {
+    debug!("{}", message)
+}
+
+pub fn log_info(message: &str) {
+    info!("{}", message)
 }

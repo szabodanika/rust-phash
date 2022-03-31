@@ -1,0 +1,7 @@
+/target
+/input
+.idea
+.sh
+.vscode
+/temp
+Cargo.lock

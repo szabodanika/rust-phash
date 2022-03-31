@@ -9,8 +9,8 @@ use std::process;
 const TEMP_FILE_DIR_PATH: &'static str = "./temp/";
 const TEMP_FILE_EXT: &'static str = ".bmp";
 
-const SCALED_SIDE_LENGTH: u32 = 64;
-const SCALED_SIDE_LENGTH2: u32 = 8;
+const SCALED_SIDE_LENGTH: u32 = 256;
+const SCALED_SIDE_LENGTH2: u32 = 32;
 
 const TEMP_FILE_NAME_LANDSCAPE: &'static str = "landscape";
 const TEMP_FILE_NAME_RESCALED: &'static str = "rescale";
@@ -21,11 +21,11 @@ const TEMP_FILE_NAME_BINARY: &'static str = "binary";
 const TEMP_FILE_NAME_DCT: &'static str = "dct";
 
 pub fn similarity(hashes1: &Vec<String>, hashes2: &Vec<String>) -> f32 {
-    1f32 - lowest_levenshtein_distance(hashes1, hashes2)
+    1f32 - lowest_distance(hashes1, hashes2)
 }
 
 // hashes 1 contains 4 rotations, hashes 2 contains only 1
-fn lowest_levenshtein_distance(hashes1: &Vec<String>, hashes2: &Vec<String>) -> f32 {
+fn lowest_distance(hashes1: &Vec<String>, hashes2: &Vec<String>) -> f32 {
     let mut lowest: f32 = 1f32;
     for i in 0..hashes1.len() {
         let dist = hash_distance(&hashes1[i], &hashes2[0]);
@@ -41,7 +41,12 @@ pub fn hash_similarity(hash1: &str, hash2: &str) -> f32 {
 }
 
 fn hash_distance(hash1: &str, hash2: &str) -> f32 {
-    levenshtein(hash1, hash2) as f32 / hash1.len() as f32
+
+    hamming(hash1, hash2)
+			.expect(&format!("Failed to compute Hamming distance between {} and {}",
+			hash1, hash2))
+			as f32 / hash1.len() as f32
+
 }
 
 pub fn hash(file_name: &str, rotations: &bool) -> Vec<String> {
@@ -75,7 +80,7 @@ pub fn hash(file_name: &str, rotations: &bool) -> Vec<String> {
     // OPTIONAL STEP 6.5 - NORMALISATION
     let rescaled2 = normalise(&rescaled2);
     save_to_disk(&rescaled2, TEMP_FILE_NAME_RESCALED2);
-
+    
     // STEP 7 - CONVERT GREYSCALE TO BINARY
     let binary = binary(&rescaled2);
     save_to_disk(&binary, TEMP_FILE_NAME_BINARY);
@@ -105,7 +110,7 @@ fn load_from_disk(file_name: &str) -> Result<DynamicImage, ImageError> {
 
 fn save_to_disk(img: &DynamicImage, file_name: &str) {
     fs::create_dir_all(TEMP_FILE_DIR_PATH);
-
+    
     let save_result = img.save(format!(
         "{}{}{}",
         TEMP_FILE_DIR_PATH, file_name, TEMP_FILE_EXT
